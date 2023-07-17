@@ -1,0 +1,15 @@
+{
+    "name": "timiyang/timiyang",
+    "autoload": {
+        "psr-4": {
+            "Timiyang\\Timiyang\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "timiyang",
+            "email": "timi544630917@outlook.com"
+        }
+    ],
+    "require": {}
+}
