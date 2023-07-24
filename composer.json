@@ -3,7 +3,10 @@
     "autoload": {
         "psr-4": {
             "timiyang\\timiyang\\": "src/"
-        }
+        },
+        "files": [
+            "src/Functions.php"
+        ]
     },
     "authors": [
         {
@@ -12,6 +15,8 @@
         }
     ],
     "require": {
-        "php-amqplib/php-amqplib": "^3.5"
+        "php-amqplib/php-amqplib": "^3.5",
+        "nesbot/carbon": "^2.68",
+        "topthink/think-helper": "^3.1"
     }
 }

@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use \timiyang\timiyang\Rabbitmq\RabbitmqService;
+use \PhpAmqpLib\Message\AMQPMessage;
 
 class Consumer extends RabbitmqService
 {
@@ -30,15 +31,25 @@ class Consumer extends RabbitmqService
     {
         echo '接收到任务，处理中............' . "\n";
         echo $param;
+        $data = json_decode($param, true);
+        // if (isset($data['retry']) && $data['retry'] == true) {
+        //     echo '任务重新加入队列............' . "\n";
+        //     $this->push($param, 1000);
+        // }
         echo "\n" . '任务处理完成............' . "\n";
+    }
+    public function push($message, $delay_time = 1000)
+    {
+        //在消费者模式下，因为有手动ack模式，同一channel下，复用channel 发送队列消息不支持confirm模式
+        $this->sendMessage($message, $delay_time);
     }
 }
 
 $consumer = new Consumer();
-//是否自动应答 false 开启手动应答
+//是否自动应答 false 开启自动应答
 $ackFlag = false;
-echo '等待接收任务............' . "\n";
+echo '开启队列............' . "\n";
 //阻塞处理任务
 $consumer->dealMq($ackFlag);
 $consumer->closeConnetct();
-echo '任务处理完成............' . "\n";
+echo '退出队列............' . "\n";

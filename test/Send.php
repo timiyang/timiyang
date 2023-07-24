@@ -1,9 +1,9 @@
 <?php
 
-require_once __DIR__.'/../vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
-use \timiyang\timiyang\Rabbitmq\RabbitmqService;
 use \PhpAmqpLib\Message\AMQPMessage;
+use \timiyang\timiyang\Rabbitmq\RabbitmqService;
 
 class Send extends RabbitmqService
 {
@@ -17,14 +17,14 @@ class Send extends RabbitmqService
             'port' => '5672',
             'user' => 'guest',
             'password' => 'guest',
-            'vhost' => 'duanju_test'
+            'vhost' => 'duanju_test',
         ];
         $amqpDetail = [
             'exchange_name' => 'direct_exchange_delay_test',
             'exchange_type' => 'direct', //直连
             'queue_name' => 'direct_queue_delay_test',
             'route_key' => 'direct_routerking_delay_test',
-            'consumer_tag' => 'direct'
+            'consumer_tag' => 'direct',
         ];
         parent::__construct($amqpDetail['exchange_name'], $amqpDetail['queue_name'], $amqpDetail['route_key'], $amqpDetail['exchange_type'], $amqp);
     }
@@ -51,10 +51,19 @@ class Send extends RabbitmqService
     }
 }
 
-
 $publisher = new Send();
 
-$publisher->push('hello', 5000);
+$data = [
+    'job' => 'timiyang\\timiyang\\Jober\\DemoJober',
+    'maxTries' => 4,
+    'timeout' => null,
+    'data' => [
+        'order_id' => time()
+    ],
+    'id' => 'cjWBzuGnSUlbPvJZPxZyqmrEauvWNopX',
+    'attempts' => 0
 
+];
+$publisher->push(json_encode($data), 1000);
 
 $publisher->closeConnetct();

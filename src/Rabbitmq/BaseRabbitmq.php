@@ -8,7 +8,7 @@ use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
 
-abstract class RabbitmqService
+ class BaseRabbitmq
 {
     //MQ的默认连接配置
     public $config = array(
@@ -27,6 +27,8 @@ abstract class RabbitmqService
     public $exchangeType = 'direct';    //交换机类型
 
     public $autoAck = true; //是否自动ack应答
+
+   
 
     public function __construct($exchangeName, $queueName, $routeKey, $exchangeType = 'direct', $config = array())
     {
@@ -100,7 +102,7 @@ abstract class RabbitmqService
 
     //将队列与某个交换机进行绑定，并使用路由关键字
     //参数：队列名，交换机名，路由键名
-    private function queueBind()
+    public function queueBind()
     {
         $this->channel->queue_bind($this->queueName, $this->exchangeName, $this->routeKey);
     }
@@ -133,55 +135,9 @@ abstract class RabbitmqService
         $this->channel->basic_publish($message, $this->exchangeName, $this->routeKey);
     }
 
-    //处理消息
-    public function dealMq($flag)
-    {
-        $this->autoAck = $flag;
-        $this->queueBind();
-        //prefetchSize：0
-        //prefetchCount：会告诉RabbitMQ不要同时给一个消费者推送多于N个消息，即一旦有N个消息还没有ack，则该consumer将block掉，直到有消息ack
-        //global：true\false 是否将上面设置应用于channel，简单点说，就是上面限制是channel级别的还是consumer级别
-        //$this->channel->basic_qos(0, 1, false);
+   
 
-        //流量控制 我们可以通过设置 basic_qos 第二个参数 prefetch_count = 1。
-        //这一项告诉RabbitMQ不要一次给一个消费者发送多个消息。或者换一种说法，在确认前一个消息之前，不要向消费者发送新的消息。
-        //相反，新的消息将发送到一个处于空闲的消费者又或者只有consumer已经处理并确认了上一条message时queue才分派新的message给它
-        $this->channel->basic_qos(0, 1, false);
-        //1:queue 要取得消息的队列名
-        //2:consumer_tag 消费者标签
-        //3:no_local false这个功能属于AMQP的标准,但是rabbitMQ并没有做实现.参考
-        //4:no_ack  false收到消息后,是否不需要回复确认即被认为被消费
-        //5:exclusive false排他消费者,即这个队列只能由一个消费者消费.适用于任务不允许进行并发处理的情况下.比如系统对接
-        //6:nowait  false不返回执行结果,但是如果排他开启的话,则必须需要等待结果的,如果两个一起开就会报错
-        //7:callback  null回调函数
-        //8:ticket  null
-        //9:arguments null
-        $this->channel->basic_consume($this->queueName, '', false, $this->autoAck, false, false, function ($msg) {
-            $this->get($msg);
-        });
-        //监听消息
-        while (count($this->channel->callbacks)) {
-            echo '等待开始'."\n";
-            $this->channel->wait();
-            echo '处理完成'."\n";
-        }
-    }
-
-    public function get($msg)
-    {
-        $param = $msg->body;
-        $this->doProcess($param);
-        if (!$this->autoAck) {
-            //手动ack应答
-            $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
-        }
-        //Send a message with the string "quit" to cancel the consumer. 发送退出信号
-        if ($msg->body === 'quit') {
-            $msg->delivery_info['channel']->basic_cancel($msg->delivery_info['consumer_tag']);
-        }
-    }
-
-    abstract public function doProcess($param);
+ 
 
     public function closeConnetct()
     {
