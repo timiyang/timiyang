@@ -66,6 +66,13 @@ class Worker
 
     public $event;
 
+    public $cache;
+
+    public function setCache($cache)
+    {
+        $this->cache = $cache;
+    }
+
     public function setEvent(Event $event)
     {
         $this->event = $event;
@@ -127,7 +134,6 @@ class Worker
             $this->listenForSignals();
         }
 
-        //@todo 重启机制
         $lastRestart = $this->getTimestampOfLastQueueRestart();
         //处理消息
         $this->rabbitmq->autoAck = $this->autoAck;
@@ -150,13 +156,14 @@ class Worker
         //7:callback  null回调函数
         //8:ticket  null
         //9:arguments null
-        $this->rabbitmq->channel->basic_consume($this->rabbitmq->queueName, '', false, $this->rabbitmq->autoAck, false, false, function ($msg) {
+        $this->rabbitmq->channel->basic_consume($this->rabbitmq->queueName, '', false, $this->rabbitmq->autoAck, false, false, function ($msg) use( $lastRestart) {
             $this->get($msg);
+            $this->stopIfNecessary($lastRestart, $this->memory);
         });
         //监听消息
         while (count($this->rabbitmq->channel->callbacks)) {
             $this->rabbitmq->channel->wait();
-            $this->stopIfNecessary($lastRestart, $this->memory);
+          
         }
         $this->rabbitmq->closeConnetct();
     }
@@ -183,20 +190,17 @@ class Worker
             //手动ack应答
             $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
         }
-        //Send a message with the string "quit" to cancel the consumer. 发送退出信号
-        // if ($msg->body === 'quit') {
-        //     $msg->delivery_info['channel']->basic_cancel($msg->delivery_info['consumer_tag']);
-        // }
+       
     }
 
 
-    
+
     protected function stopIfNecessary($lastRestart, $memory)
     {
         if ($this->shouldQuit || $this->queueShouldRestart($lastRestart)) {
-            $this->stop();
+            $this->stop(WorkerStopping::STATUS_MAP['quit']);
         } elseif ($this->memoryExceeded($memory)) {
-            $this->stop(12);
+            $this->stop(WorkerStopping::STATUS_MAP['memory_out']);
         }
     }
 
@@ -228,9 +232,19 @@ class Worker
      */
     protected function getTimestampOfLastQueueRestart()
     {
-        // if ($this->cache) {
-        //     return $this->cache->get('think:queue:restart');
-        // }
+        if ($this->cache) {
+            // retrieve the cache item
+            // 取出缓存元素
+            $numProducts = $this->cache->getItem('timiyang-queue-restart');
+            if (!$numProducts->isHit()) {
+                // ... item does not exists in the cache
+                // ... 元素在缓存中不存在
+                return null;
+            }
+            // retrieve the value stored by the item
+            // 取出元素存储的值
+            return  $numProducts->get();
+        }
     }
 
     /**
@@ -243,7 +257,7 @@ class Worker
     protected function registerTimeoutHandler($job, $timeout)
     {
         pcntl_signal(SIGALRM, function () {
-            $this->kill(1);
+            $this->kill(WorkerStopping::STATUS_MAP['longtime']);
         });
 
         pcntl_alarm(

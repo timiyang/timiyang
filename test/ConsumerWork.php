@@ -12,6 +12,7 @@ use \timiyang\timiyang\Event\WorkerStopping;
 use \timiyang\timiyang\Event\JobProcessed;
 use \timiyang\timiyang\Event\JobRelease;
 use \timiyang\timiyang\Event\WorkerExceptionOccured;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 
 
 
@@ -55,7 +56,7 @@ $event->listen(JobExceptionOccurred::class, function (JobExceptionOccurred $even
     console_log('job处理异常',  $content);
 });
 $event->listen(WorkerStopping::class, function (WorkerStopping $event) {
-    $content =    '状态码:' . $event->status;
+    $content =    '状态码:' . $event->getMessage();
     console_log('working stopping',  $content);
 });
 $event->listen(JobRelease::class, function (JobRelease $event) {
@@ -77,6 +78,11 @@ $work->setMaxTries(3);
 $work->setDelay(10);
 $work->setTimeOut(60);
 $work->setEvent($event);
+//cache 
+$cache = new FilesystemAdapter();
+$work->setCache($cache);
+//memory M
+//$work->setMemory(3);
 $work->setRabbitmq($rabbitmq);
 echo '开启队列............' . "\n";
 $work->master();
